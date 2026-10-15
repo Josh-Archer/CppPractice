@@ -37,7 +37,7 @@ int main()
             http_response resp = response.get();
             // string_t is wstring on Windows and string on Linux.
             utility::string_t body = resp.extract_string().get();
-            cout << to_string(resp.status_code()).append(": ").append(utility::conversions::to_utf8string(body)) << endl;
+            cout << to_string(resp.status_code()).append(": ").append(body_to_utf8(body)) << endl;
         } catch (const std::exception& e) {
             cerr << "Error: " << e.what() << endl;
             continue;
