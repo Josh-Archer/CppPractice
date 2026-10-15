@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <windows.h>
-
+#include <thread>
+#include <chrono>
 
 #include <cpprest/http_client.h>
 #include <cpprest/asyncrt_utils.h>
@@ -47,12 +47,13 @@ int main()
     }
 
     for(const task<http_response>& response : taskVector) {
-        Sleep(1000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         response.wait();
         cout << response.is_done() << endl;
         http_response resp = response.get();
-        wstring body = resp.extract_string().get();
-        cout << to_string(resp.status_code()).append(": ").append(string(body.begin(), body.end())) << endl;
+        // string_t is wstring on Windows and string on Linux.
+        utility::string_t body = resp.extract_string().get();
+        cout << to_string(resp.status_code()).append(": ").append(utility::conversions::to_utf8string(body)) << endl;
     }
     cout << endl;
 }
