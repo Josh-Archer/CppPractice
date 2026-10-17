@@ -1,8 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <thread>
-#include <chrono>
 
 #include <cpprest/http_client.h>
 #include <cpprest/asyncrt_utils.h>
@@ -38,12 +36,12 @@ int main(int argc, char* argv[])
         taskVector.push_back(task);
     }
 
+    try {
+        wait_for_all_tasks(taskVector);
+    } catch (...) {
+        // Individual failures are reported while retrieving each response below.
+    }
     for(const task<http_response>& response : taskVector) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        try {
-            response.wait();
-        } catch (...) {
-        }
         cout << response.is_done() << endl;
         try {
             http_response resp = response.get();

@@ -1,7 +1,37 @@
 #include <iostream>
 #include <exception>
 #include <string>
+#include <vector>
 #include "call_api.h"
+
+int test_wait_for_all_tasks() {
+    pplx::task_completion_event<void> first_event;
+    pplx::task_completion_event<void> second_event;
+    auto first_task = pplx::create_task(first_event);
+    auto second_task = pplx::create_task(second_event);
+    std::vector<pplx::task<void>> tasks{first_task, second_task};
+    auto joined_task = pplx::create_task([&tasks]() {
+        wait_for_all_tasks(tasks);
+    });
+
+    first_event.set();
+    first_task.wait();
+    if (joined_task.is_done()) {
+        std::cerr << "Test failed: aggregate task completed before every task." << std::endl;
+        return 1;
+    }
+
+    second_event.set();
+    try {
+        joined_task.get();
+    } catch (const std::exception& e) {
+        std::cerr << "Test failed: waiting for all tasks threw: " << e.what() << std::endl;
+        return 1;
+    }
+
+    std::cout << "Regression test passed: wait_for_all_tasks waits for every task." << std::endl;
+    return 0;
+}
 
 int test_invalid_url() {
     // A request to an invalid URL yields a scheduled task without needing network
@@ -65,6 +95,9 @@ int test_body_to_utf8_non_ascii() {
 
 int main() {
     try {
+        if (test_wait_for_all_tasks() != 0) {
+            return 1;
+        }
         if (test_invalid_url() != 0) {
             return 1;
         }

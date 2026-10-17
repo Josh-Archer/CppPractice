@@ -5,6 +5,7 @@
 #include <exception>
 #include <algorithm>
 #include <cctype>
+#include <vector>
 
 #include <cpprest/http_client.h>
 #include <cpprest/asyncrt_utils.h>
@@ -47,4 +48,9 @@ inline pplx::task<web::http::http_response> call_api(const utility::string_t& ur
     }
 
     return task;
+}
+
+template <typename T>
+inline void wait_for_all_tasks(const std::vector<pplx::task<T>>& tasks) {
+    pplx::when_all(tasks.begin(), tasks.end()).wait();
 }
