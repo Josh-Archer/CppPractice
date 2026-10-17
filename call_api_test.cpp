@@ -1,7 +1,46 @@
 #include <iostream>
 #include <exception>
 #include <string>
+#include <vector>
+#include <thread>
+#include <chrono>
+#include <stdexcept>
 #include "call_api.h"
+
+int test_wait_for_all_tasks() {
+    auto fast = pplx::task_from_result();
+    auto slow = pplx::create_task([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    });
+    wait_for_all_tasks(std::vector<pplx::task<void>>{fast, slow});
+    if (!slow.is_done()) {
+        std::cerr << "Test failed: slow task was not done when wait_for_all_tasks returned." << std::endl;
+        return 1;
+    }
+
+    // Verify that wait_for_all_tasks waits for all tasks even if one fails, then reports the failure.
+    auto failing = pplx::task_from_exception<void>(std::make_exception_ptr(std::runtime_error("simulated failure")));
+    auto slow_failing = pplx::create_task([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    });
+    bool caught = false;
+    try {
+        wait_for_all_tasks(std::vector<pplx::task<void>>{failing, slow_failing});
+    } catch (const std::exception&) {
+        caught = true;
+    }
+    if (!caught) {
+        std::cerr << "Test failed: wait_for_all_tasks did not report failure when a task threw." << std::endl;
+        return 1;
+    }
+    if (!slow_failing.is_done()) {
+        std::cerr << "Test failed: slow task was not done when wait_for_all_tasks returned after failure." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Regression test passed: wait_for_all_tasks waits for every task deterministically." << std::endl;
+    return 0;
+}
 
 int test_invalid_url() {
     // A request to an invalid URL yields a scheduled task without needing network
@@ -29,6 +68,24 @@ int test_invalid_url() {
     return 0;
 }
 
+int test_request_url_validation() {
+    if (!is_valid_http_url(U("https://example.com/path?query=value")) ||
+        !is_valid_http_url(U("HTTP://example.com"))) {
+        std::cerr << "Test failed: a valid HTTP(S) URL was rejected." << std::endl;
+        return 1;
+    }
+
+    if (is_valid_http_url(U("not a valid uri")) ||
+        is_valid_http_url(U("ftp://example.com")) ||
+        is_valid_http_url(U("http:///missing-host"))) {
+        std::cerr << "Test failed: an invalid request URL was accepted." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Regression test passed: request URL validation accepts only HTTP(S) URLs." << std::endl;
+    return 0;
+}
+
 int test_body_to_utf8_non_ascii() {
     utility::string_t non_ascii = U("caf\u00e9 \u65e5\u672c");
     std::string result = body_to_utf8(non_ascii);
@@ -47,7 +104,13 @@ int test_body_to_utf8_non_ascii() {
 
 int main() {
     try {
+        if (test_wait_for_all_tasks() != 0) {
+            return 1;
+        }
         if (test_invalid_url() != 0) {
+            return 1;
+        }
+        if (test_request_url_validation() != 0) {
             return 1;
         }
         if (test_body_to_utf8_non_ascii() != 0) {

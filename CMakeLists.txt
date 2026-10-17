@@ -26,3 +26,4 @@ if(UNIX AND NOT APPLE)
 endif()
 
 add_test(NAME call_api_test COMMAND call_api_test)
+set_tests_properties(call_api_test PROPERTIES TIMEOUT 30)
