@@ -2,34 +2,43 @@
 #include <exception>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
+#include <stdexcept>
 #include "call_api.h"
 
 int test_wait_for_all_tasks() {
-    pplx::task_completion_event<void> first_event;
-    pplx::task_completion_event<void> second_event;
-    auto first_task = pplx::create_task(first_event);
-    auto second_task = pplx::create_task(second_event);
-    std::vector<pplx::task<void>> tasks{first_task, second_task};
-    auto joined_task = pplx::create_task([&tasks]() {
-        wait_for_all_tasks(tasks);
+    auto fast = pplx::task_from_result();
+    auto slow = pplx::create_task([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     });
-
-    first_event.set();
-    first_task.wait();
-    if (joined_task.is_done()) {
-        std::cerr << "Test failed: aggregate task completed before every task." << std::endl;
+    wait_for_all_tasks(std::vector<pplx::task<void>>{fast, slow});
+    if (!slow.is_done()) {
+        std::cerr << "Test failed: slow task was not done when wait_for_all_tasks returned." << std::endl;
         return 1;
     }
 
-    second_event.set();
+    // Verify that wait_for_all_tasks waits for all tasks even if one fails, then reports the failure.
+    auto failing = pplx::task_from_exception<void>(std::make_exception_ptr(std::runtime_error("simulated failure")));
+    auto slow_failing = pplx::create_task([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    });
+    bool caught = false;
     try {
-        joined_task.get();
-    } catch (const std::exception& e) {
-        std::cerr << "Test failed: waiting for all tasks threw: " << e.what() << std::endl;
+        wait_for_all_tasks(std::vector<pplx::task<void>>{failing, slow_failing});
+    } catch (const std::exception&) {
+        caught = true;
+    }
+    if (!caught) {
+        std::cerr << "Test failed: wait_for_all_tasks did not report failure when a task threw." << std::endl;
+        return 1;
+    }
+    if (!slow_failing.is_done()) {
+        std::cerr << "Test failed: slow task was not done when wait_for_all_tasks returned after failure." << std::endl;
         return 1;
     }
 
-    std::cout << "Regression test passed: wait_for_all_tasks waits for every task." << std::endl;
+    std::cout << "Regression test passed: wait_for_all_tasks waits for every task deterministically." << std::endl;
     return 0;
 }
 
