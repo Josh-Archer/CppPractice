@@ -29,6 +29,24 @@ int test_invalid_url() {
     return 0;
 }
 
+int test_request_url_validation() {
+    if (!is_valid_http_url(U("https://example.com/path?query=value")) ||
+        !is_valid_http_url(U("HTTP://example.com"))) {
+        std::cerr << "Test failed: a valid HTTP(S) URL was rejected." << std::endl;
+        return 1;
+    }
+
+    if (is_valid_http_url(U("not a valid uri")) ||
+        is_valid_http_url(U("ftp://example.com")) ||
+        is_valid_http_url(U("http:///missing-host"))) {
+        std::cerr << "Test failed: an invalid request URL was accepted." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Regression test passed: request URL validation accepts only HTTP(S) URLs." << std::endl;
+    return 0;
+}
+
 int test_body_to_utf8_non_ascii() {
     utility::string_t non_ascii = U("caf\u00e9 \u65e5\u672c");
     std::string result = body_to_utf8(non_ascii);
@@ -85,6 +103,9 @@ int test_format_status_and_body_length() {
 int main() {
     try {
         if (test_invalid_url() != 0) {
+            return 1;
+        }
+        if (test_request_url_validation() != 0) {
             return 1;
         }
         if (test_body_to_utf8_non_ascii() != 0) {

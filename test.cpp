@@ -14,18 +14,32 @@ using namespace web::http::client;
 using namespace std;
 using namespace pplx;
 
-int main()
+int main(int argc, char* argv[])
 {
+    const string program_name = (argc > 0 && argv[0] != nullptr) ? argv[0] : "josh";
+    const string usage = string("Usage: ") + program_name + " <request-url>";
+    if (argc != 2) {
+        cerr << usage << endl;
+        return 1;
+    }
+
+    const utility::string_t url = utility::conversions::to_string_t(argv[1]);
+    if (!is_valid_http_url(url)) {
+        cerr << "Invalid request URL." << endl << usage << endl;
+        return 1;
+    }
+
     vector<string> msg {"Hello", "C++", "World", "from", "VS Code", "and the C++ extension!"};
     vector<task<http_response>> taskVector;
     for (const string& word : msg)
     {
         cout << word << " ";
-        task<http_response> task = call_api();
+        task<http_response> task = call_api(url);
         cout << task.is_done() << endl;
         taskVector.push_back(task);
     }
 
+    bool request_failed = false;
     for(const task<http_response>& response : taskVector) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         try {
@@ -39,8 +53,10 @@ int main()
             cout << format_status_and_body_length(resp.status_code(), body) << endl;
         } catch (const std::exception& e) {
             cerr << "Error: " << e.what() << endl;
+            request_failed = true;
             continue;
         }
     }
     cout << endl;
+    return request_failed ? 1 : 0;
 }
