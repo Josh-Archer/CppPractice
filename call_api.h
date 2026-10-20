@@ -27,6 +27,14 @@ inline bool is_valid_http_url(const utility::string_t& url) {
     return (scheme == "http" || scheme == "https") && !parsed_url.host().empty();
 }
 
+// Status code and UTF-8 body length only. string_t is wstring on Windows and
+// string on Linux, so body.size() is not a portable length of the bytes that
+// would otherwise be written.
+inline std::string format_status_and_body_length(web::http::status_code status,
+                                                  const utility::string_t& body) {
+    return std::to_string(status) + ": " + std::to_string(body_to_utf8(body).size());
+}
+
 inline pplx::task<web::http::http_response> call_api(const utility::string_t& url) {
     pplx::task<web::http::http_response> task;
     try {

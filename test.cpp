@@ -16,7 +16,8 @@ using namespace pplx;
 
 int main(int argc, char* argv[])
 {
-    const string usage = string("Usage: ") + argv[0] + " <request-url>";
+    const string program_name = (argc > 0 && argv[0] != nullptr) ? argv[0] : "josh";
+    const string usage = string("Usage: ") + program_name + " <request-url>";
     if (argc != 2) {
         cerr << usage << endl;
         return 1;
@@ -38,6 +39,7 @@ int main(int argc, char* argv[])
         taskVector.push_back(task);
     }
 
+    bool request_failed = false;
     for(const task<http_response>& response : taskVector) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         try {
@@ -47,13 +49,14 @@ int main(int argc, char* argv[])
         cout << response.is_done() << endl;
         try {
             http_response resp = response.get();
-            // string_t is wstring on Windows and string on Linux.
             utility::string_t body = resp.extract_string().get();
-            cout << to_string(resp.status_code()).append(": ").append(body_to_utf8(body)) << endl;
+            cout << format_status_and_body_length(resp.status_code(), body) << endl;
         } catch (const std::exception& e) {
             cerr << "Error: " << e.what() << endl;
+            request_failed = true;
             continue;
         }
     }
     cout << endl;
+    return request_failed ? 1 : 0;
 }
