@@ -102,6 +102,43 @@ int test_body_to_utf8_non_ascii() {
     return 0;
 }
 
+int test_format_status_and_body_length() {
+    const std::string ascii_line = format_status_and_body_length(200, U("hello"));
+    if (ascii_line != "200: 5") {
+        std::cerr << "Test failed: expected \"200: 5\" for an ASCII body, got \""
+                  << ascii_line << "\"." << std::endl;
+        return 1;
+    }
+    if (ascii_line.find("hello") != std::string::npos) {
+        std::cerr << "Test failed: status line still contains the response body." << std::endl;
+        return 1;
+    }
+
+    const std::string empty_line = format_status_and_body_length(204, U(""));
+    if (empty_line != "204: 0") {
+        std::cerr << "Test failed: expected \"204: 0\" for an empty body, got \""
+                  << empty_line << "\"." << std::endl;
+        return 1;
+    }
+
+    // Same fixture as body_to_utf8: "café 日本" is 12 UTF-8 bytes, not 6 code points.
+    const utility::string_t non_ascii = U("caf\u00e9 \u65e5\u672c");
+    const std::string non_ascii_line = format_status_and_body_length(404, non_ascii);
+    if (non_ascii_line != "404: 12") {
+        std::cerr << "Test failed: expected \"404: 12\" for a multibyte body, got \""
+                  << non_ascii_line << "\"." << std::endl;
+        return 1;
+    }
+    if (non_ascii_line.find("caf") != std::string::npos) {
+        std::cerr << "Test failed: status line still contains the response body." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Regression test passed: status line prints code and UTF-8 body length only."
+              << std::endl;
+    return 0;
+}
+
 int main() {
     try {
         if (test_wait_for_all_tasks() != 0) {
@@ -114,6 +151,9 @@ int main() {
             return 1;
         }
         if (test_body_to_utf8_non_ascii() != 0) {
+            return 1;
+        }
+        if (test_format_status_and_body_length() != 0) {
             return 1;
         }
         return 0;

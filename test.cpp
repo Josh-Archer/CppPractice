@@ -45,9 +45,8 @@ int main(int argc, char* argv[])
         cout << response.is_done() << endl;
         try {
             http_response resp = response.get();
-            // string_t is wstring on Windows and string on Linux.
             utility::string_t body = resp.extract_string().get();
-            cout << to_string(resp.status_code()).append(": ").append(body_to_utf8(body)) << endl;
+            cout << format_status_and_body_length(resp.status_code(), body) << endl;
         } catch (const std::exception& e) {
             cerr << "Error: " << e.what() << endl;
             continue;
