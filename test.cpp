@@ -14,7 +14,8 @@ using namespace pplx;
 
 int main(int argc, char* argv[])
 {
-    const string usage = string("Usage: ") + argv[0] + " <request-url>";
+    const string program_name = (argc > 0 && argv[0] != nullptr) ? argv[0] : "josh";
+    const string usage = string("Usage: ") + program_name + " <request-url>";
     if (argc != 2) {
         cerr << usage << endl;
         return 1;
@@ -36,6 +37,7 @@ int main(int argc, char* argv[])
         taskVector.push_back(task);
     }
 
+    bool request_failed = false;
     try {
         wait_for_all_tasks(taskVector);
     } catch (...) {
@@ -49,8 +51,10 @@ int main(int argc, char* argv[])
             cout << format_status_and_body_length(resp.status_code(), body) << endl;
         } catch (const std::exception& e) {
             cerr << "Error: " << e.what() << endl;
+            request_failed = true;
             continue;
         }
     }
     cout << endl;
+    return request_failed ? 1 : 0;
 }
